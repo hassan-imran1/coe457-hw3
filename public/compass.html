@@ -1,0 +1,100 @@
+<html>
+
+<head>
+
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-content: center;
+        }
+
+        .mydiv {
+            display: flex;
+            height: 60%;
+            width: 30%;
+            border-radius: 50%;
+            background-color: crimson;
+        }
+
+        .center {
+            margin: auto;
+        }
+
+        #pointer {
+            font-size: 250;
+            color: white;
+            transform: rotate(0deg);
+        }
+
+    </style>
+
+    <title>Compass</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+    <script>
+
+        var client;
+        var topic = "coe457/hw3";;
+
+        function InitMQTT() {
+            const myhost = '127.0.0.1';
+            const myport = 7777;
+            client = new Paho.MQTT.Client(myhost, myport, "clientID_" + parseInt(Math.random() * 100, 10));
+
+            client.onConnectionLost = function (responseObject) {
+                console.log("connection lost: " + responseObject.errorMessage);
+            };
+        }
+
+        function calcAngle(source, destination) {
+            var longDiff = destination[1] - source[1];
+            var angle = Math.atan2(Math.sin(longDiff) * Math.cos(destination[0]), ((Math.cos(source[0]) * Math.sin(destination[0])) - (Math.sin(source[0]) * Math.cos(destination[0]) * Math.cos(longDiff))));
+            var x = (angle * 180 / Math.PI);
+            return x;
+        }
+
+        function getLoc() {
+            client.onMessageArrived = function (message) {
+                var parsedMsg = message.payloadString.split(' ');
+                const parsedRsp = JSON.parse(parsedMsg[0]);
+                const source = [parseFloat(parsedRsp.srcLat), parseFloat(parsedRsp.srcLong)];
+                const destination = [parseFloat(parsedRsp.dstLat), parseFloat(parsedRsp.dstLong)];
+                var angle = calcAngle(source, destination);
+                $('#pointer').css('transform', 'rotate(' + (angle - 90) + 'deg)');
+            }
+        }
+
+        window.onload = function () {
+
+            InitMQTT();
+
+            client.connect({
+                onSuccess: function () {
+                    client.subscribe('coe457/hw3');
+                    console.log("mqtt connected in compass");
+
+                },
+                onFailure: function (message) {
+                    console.log("Connection failed: " + message.errorMessage);
+                }
+            });
+
+            getLoc();
+
+            var interval = window.setInterval(getLoc, 1000);
+        }
+
+    </script>
+
+</head>
+
+<body>
+    <div class="mydiv center">
+        <div class="center" id="pointer"> > </div>
+    </div>
+</body>
+
+</html>

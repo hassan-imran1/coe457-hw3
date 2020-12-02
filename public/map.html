@@ -1,0 +1,276 @@
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+    <script src="https://www.mapquestapi.com/sdk/leaflet/v2.2/mq-map.js?key=plYCAhkPJX4VlckBmrop6pIncTq5uyUP"></script>
+    <script
+        src="https://www.mapquestapi.com/sdk/leaflet/v2.2/mq-routing.js?key=plYCAhkPJX4VlckBmrop6pIncTq5uyUP"></script>
+
+    <meta charset="utf-8">
+    <meta content="width=device-width, initial-scale=1.0" name="viewport">
+
+    <title>Maps - HW3</title>
+    <meta content="" name="descriptison">
+    <meta content="" name="keywords">
+
+    <!-- Favicons -->
+    <link href="assets/img/favicon.png" rel="icon">
+    <link href="assets/img/apple-touch-icon.png" rel="apple-touch-icon">
+
+    <!-- Google Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css?family=Open+Sans:300,300i,400,400i,600,600i,700,700i|Raleway:300,300i,400,400i,500,500i,600,600i,700,700i|Poppins:300,300i,400,400i,500,500i,600,600i,700,700i"
+        rel="stylesheet">
+
+    <!-- Vendor CSS Files -->
+    <link href="assets/vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/vendor/icofont/icofont.min.css" rel="stylesheet">
+    <link href="assets/vendor/boxicons/css/boxicons.min.css" rel="stylesheet">
+    <link href="assets/vendor/owl.carousel/assets/owl.carousel.min.css" rel="stylesheet">
+    <link href="assets/vendor/venobox/venobox.css" rel="stylesheet">
+    <link href="assets/vendor/remixicon/remixicon.css" rel="stylesheet">
+    <link href="assets/vendor/aos/aos.css" rel="stylesheet">
+
+    <!-- Template Main CSS File -->
+    <link href="assets/css/style.css" rel="stylesheet">
+
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/pahomqtt/1.0.1/mqttws31.min.js"></script> -->
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.js" type="text/javascript"></script> -->
+    <!-- <script src="mqtt.js"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+
+    <script type="text/javascript">
+
+        var client;
+        var topic = "coe457/hw3";;
+
+        function InitMQTT() {
+            const myhost = '127.0.0.1'; // localhost
+            const myport = 7777; // wbs
+            client = new Paho.MQTT.Client(myhost, myport, "clientID_" + parseInt(Math.random() * 100, 10));
+
+            client.onConnectionLost = function (responseObject) {
+                console.log("connection lost: " + responseObject.errorMessage);
+            };
+
+            client.onMessageArrived = function (message) {
+                console.log(message.destinationName, ' -- ', message.payloadString);
+            };
+        }
+
+        window.onload = async function () {
+
+            var map;
+            var dir;
+            var isClicked;
+            // var loc;
+            // var clkLoc;
+            var loc = [24, 54]; // somewhere in AD
+            var clkLoc = [25.31020234032244, 55.49211385568665]; // AUS
+
+            // ================================================================================================
+
+            //var mqtt = require('mqtt'); // SERVERSIDE CODE - WONT WORK HERE
+            // var client = mqtt.connect('mqtt://localhost:1883');
+
+            // client.on('connect', function () {
+            //     client.subscribe('coe457/hw3', function (err) {
+            //         if (!err) {
+            //             client.publish('coe457/hw3', 'Connected from map html');
+            //         }
+            //     })
+            // });
+
+            // ================================================================================================
+
+            // var wsbroker = "localhost";
+            // var wsport = 9001
+
+            // var client = new Paho.MQTT.Client(wsbroker, wsport, "myclientid_" + parseInt(Math.random() * 100, 10));
+
+            // client.onConnectionLost = function (responseObject) {
+            //     console.log("connection lost: " + responseObject.errorMessage);
+            // };
+
+            // client.onMessageArrived = function (message) {
+            //     console.log(message.destinationName, ' -- ', message.payloadString);
+            // };
+
+            // var options = {
+            //     timeout: 3,
+            //     onSuccess: function () {
+            //         console.log("mqtt connected");
+
+            //         // Connection succeeded; subscribe to our topic, you can add multile lines of these
+            //         client.subscribe("coe457/hw3", { qos: 1 });
+
+            //         //use the below if you want to publish to a topic on connect
+            //         // message = new Paho.MQTT.Message("Hello from the browser");
+            //         // message.destinationName = "coe457/hw3";
+            //         // client.send(message);
+            //     },
+            //     onFailure: function (message) {
+            //         console.log("Connection failed: " + message.errorMessage);
+            //     }
+            // };
+
+            // client.connect(options);
+
+            // function init() {
+            //     client.connect(options);
+            // }
+
+            // ================================================================================================
+
+            InitMQTT();
+
+            map = L.map('map', {
+                layers: MQ.mapLayer(),
+                center: [25, 55],
+                zoom: 8
+            });
+
+            dir = MQ.routing.directions();
+
+            var layer = MQ.routing.routeLayer({
+                directions: dir,
+                fitBounds: true
+            });
+
+            map.addLayer(layer);
+
+            map.locate({ setView: true, }).on('locationfound', (e) => getNewLoc(e));
+
+            map.on('click', function (e) {
+                if (isClicked) {
+                    map.removeLayer(layer)
+                    dir = MQ.routing.directions();
+                    layer = MQ.routing.routeLayer({
+                        directions: dir,
+                        fitBounds: true
+                    });
+                    map.addLayer(layer)
+                }
+                clkLoc = [e.latlng.lat, e.latlng.lng];
+
+                // client.publish('coe457/hw3', 'Current location is ' + location[0] + "," + location[1]);
+                // client.publish('coe457/hw3', 'Destination (isClicked) location is ' + clkLoc[0] + "," + clkLoc[1]);
+
+                isClicked = true;
+                dir.route({
+                    locations: [
+                        loc[0] + ',' + loc[1],
+                        clkLoc[0] + ',' + clkLoc[1]
+                    ]
+                });
+                MQTT_Compass(clkLoc, loc);
+            });
+
+            var interval = window.setInterval(MQTT_Compass, 1000);
+
+            function getNewLoc(e) {
+                if (isClicked) {
+                    map.removeLayer(layer);
+                    dir = MQ.routing.directions();
+                    layer = MQ.routing.routeLayer({
+                        directions: dir,
+                        fitBounds: true
+                    })
+                    map.addLayer(layer);
+                }
+                loc = [e.latitude, e.longitude];
+                if (clkLoc == undefined)
+                    clkLoc = [(loc[0] + 0.00005), loc[1]];
+                dir.route({
+                    locations: [
+                        loc[0] + ',' + loc[1],
+                        clkLoc[0] + ',' + clkLoc[1],
+                    ]
+                });
+                MQTT_Compass(clkLoc, loc);
+            }
+        }
+
+        function MQTT_Compass(clkLoc, loc) {
+
+            if (clkLoc != undefined) {
+                var myLocs = {
+                    srcLat: loc[0],
+                    srcLong: loc[1],
+                    dstLat: clkLoc[0],
+                    dstLong: clkLoc[1],
+                }
+
+                try {
+                    client.connect({
+                        onSuccess: function () {
+                            myLocs = JSON.stringify(myLocs);
+                            const urlParams = new URLSearchParams(window.location.search);
+                            const userfullname = urlParams.get('name');
+                            message = new Paho.MQTT.Message(myLocs + " " + userfullname);
+                            message.destinationName = "coe457/hw3";
+                            client.send(message);
+                            client.disconnect();
+                        },
+                        onFailure: function (message) {
+                            console.log("Connection failed: " + message.errorMessage);
+                        }
+                    });
+                }
+                catch (err) {
+                    console.log(err.message);
+                }
+
+            }
+
+        }
+
+    </script>
+
+</head>
+
+<!-- <body onload="init();"> -->
+
+<body>
+    <div class="container d-flex align-items-center justify-content-between">
+
+        <nav class="nav-menu d-none d-lg-block">
+            <form action="/logout" method="GET">
+                <h4 class="active" id="user_name_here" style="color: black;"> </h4>
+                <h4 class="active" id="user_numviews_here" style="color: black;"> </h4>
+                <h4 class="active" id="user_lastvisit_here" style="color: black;"> </h4>
+                <button class="get-started-btn" style="color: black;" type="submit">LOGOUT</button>
+            </form>
+        </nav><!-- .nav-menu -->
+
+    </div>
+
+    <div id='map' style='width: 100%; height:100%;'></div>
+
+    <script>
+        $(document).ready(function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userfullname = urlParams.get('name');
+            const numViews = urlParams.get('page_views');
+            const lastVisit = urlParams.get('last');
+
+            if (userfullname) {
+                $('#user_name_here').text(' Welcome Back, ' + userfullname + '! ');
+            }
+
+            if (numViews) {
+                $('#user_numviews_here').text(' You visited this page ' + numViews + ' time(s) ');
+            }
+
+            if (lastVisit) {
+                $('#user_lastvisit_here').text(' You last visited this page on' + lastVisit);
+            }
+        })
+    </script>
+
+    <!-- <script src="mqtt.js"></script> -->
+</body>
+
+</html>
